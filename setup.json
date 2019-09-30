@@ -198,6 +198,7 @@
       "direct = aiida.schedulers.plugins.direct:DirectScheduler",
       "lsf = aiida.schedulers.plugins.lsf:LsfScheduler",
       "pbspro = aiida.schedulers.plugins.pbspro:PbsproScheduler",
+      "pbsprometavo = aiida.schedulers.plugins.pbspro_metavo:PbsproSchedulerMetaVO",
       "sge = aiida.schedulers.plugins.sge:SgeScheduler",
       "slurm = aiida.schedulers.plugins.slurm:SlurmScheduler",
       "torque = aiida.schedulers.plugins.torque:TorqueScheduler"
