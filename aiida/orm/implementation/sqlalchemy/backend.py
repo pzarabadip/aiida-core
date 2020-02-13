@@ -8,16 +8,11 @@
 # For further information please visit http://www.aiida.net               #
 ###########################################################################
 """SqlAlchemy implementation of `aiida.orm.implementation.backends.Backend`."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from contextlib import contextmanager
 
-from aiida.backends.sqlalchemy import get_scoped_session
 from aiida.backends.sqlalchemy.models import base
 from aiida.backends.sqlalchemy.queries import SqlaQueryManager
-from aiida.backends.sqlalchemy.utils import migrate_database
+from aiida.backends.sqlalchemy.manager import SqlaBackendManager
 
 from ..sql import SqlBackend
 from . import authinfos
@@ -45,11 +40,11 @@ class SqlaBackend(SqlBackend[base.Base]):
         self._logs = logs.SqlaLogCollection(self)
         self._nodes = nodes.SqlaNodeCollection(self)
         self._query_manager = SqlaQueryManager(self)
+        self._schema_manager = SqlaBackendManager()
         self._users = users.SqlaUserCollection(self)
 
-    @staticmethod
-    def migrate():
-        migrate_database()
+    def migrate(self):
+        self._schema_manager.migrate()
 
     @property
     def authinfos(self):
@@ -86,11 +81,14 @@ class SqlaBackend(SqlBackend[base.Base]):
     def users(self):
         return self._users
 
-    @staticmethod
     @contextmanager
-    def transaction():
-        """Open a transaction to be used as a context manager."""
-        session = get_scoped_session()
+    def transaction(self):
+        """Open a transaction to be used as a context manager.
+
+        If there is an exception within the context then the changes will be rolled back and the state will be as before
+        entering. Transactions can be nested.
+        """
+        session = self.get_session()
         nested = session.transaction.nested
         try:
             session.begin_nested()
@@ -103,6 +101,15 @@ class SqlaBackend(SqlBackend[base.Base]):
             if not nested:
                 # Make sure to commit the outermost session
                 session.commit()
+
+    @staticmethod
+    def get_session():
+        """Return a database session that can be used by the `QueryBuilder` to perform its query.
+
+        :return: an instance of :class:`sqlalchemy.orm.session.Session`
+        """
+        from aiida.backends.sqlalchemy import get_scoped_session
+        return get_scoped_session()
 
     # Below are abstract methods inherited from `aiida.orm.implementation.sql.backends.SqlBackend`
 
@@ -124,21 +131,27 @@ class SqlaBackend(SqlBackend[base.Base]):
         finally:
             self.get_connection().close()
 
-    @staticmethod
-    def execute_raw(query):
+    def execute_raw(self, query):
         """Execute a raw SQL statement and return the result.
 
         :param query: a string containing a raw SQL statement
         :return: the result of the query
         """
-        session = get_scoped_session()
-        result = session.execute(query)
-        return result.fetchall()
+        from sqlalchemy.exc import ResourceClosedError  # pylint: disable=import-error,no-name-in-module
+
+        with self.transaction() as session:
+            queryset = session.execute(query)
+
+            try:
+                results = queryset.fetchall()
+            except ResourceClosedError:
+                return None
+
+        return results
 
     @staticmethod
     def get_connection():
-        """
-        Get the SQLA database connection
+        """Get the SQLA database connection
 
         :return: the SQLA database connection
         """
