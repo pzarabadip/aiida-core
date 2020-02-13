@@ -1125,7 +1125,7 @@ class SshTransport(Transport):
 
         # Note: The default shell will eat one level of escaping, while
         # 'bash -l -c ...' will eat another. Thus, we need to escape again.
-        channel.exec_command('bash -l -c ' + escape_for_bash(command_to_execute))
+        channel.exec_command('bash -c ' + escape_for_bash(command_to_execute))
 
         stdin = channel.makefile('wb', bufsize)
         stdout = channel.makefile('rb', bufsize)

@@ -16,7 +16,7 @@ from __future__ import division
 
 from __future__ import absolute_import
 import logging
-from .pbsbaseclasses import PbsBaseClass
+from .pbsbaseclasses_metavo import PbsBaseClassMetaVO
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ _LOGGER = logging.getLogger(__name__)
 # X  Subjob has completed execution or has been deleted.
 
 
-class PbsproScheduler(PbsBaseClass):
+class PbsproSchedulerMetaVO(PbsBaseClassMetaVO):
     """
     Subclass to support the PBSPro scheduler
     (http://www.pbsworks.com/).
